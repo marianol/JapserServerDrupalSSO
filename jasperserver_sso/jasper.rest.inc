@@ -19,7 +19,7 @@ function jasperserver_sso_rest_keepalive() {
     $curl_opts = array();
     $curl_opts[CURLOPT_COOKIE] = $_SESSION['JRS_Cookie'];
     $response = jasperserver_sso_rest_doRequest(JRS_REST_URL . 'resources?limit=1', $curl_opts);
-    dd($response['metadata']['http_code'], $label = 'JRS Keepalive');
+    // dd($response['metadata']['http_code'], $label = 'JRS Keepalive');
     return $response['metadata']['http_code'];
 }
 
