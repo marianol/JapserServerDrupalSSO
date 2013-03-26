@@ -10,15 +10,11 @@ define('JRS_BASE', '/jasperserver-pro'); // Pro
 
 define('JRS_BASE_URL', 'http://' . JRS_HOST . ':' . JRS_PORT . JRS_BASE . '/'); 
 
-define('JS_REST_URL', JRS_BASE_URL . 'rest/');
-define('JS_RESTV2_URL', JRS_BASE_URL . 'rest_v2/');
+define('JRS_REST_URL', JRS_BASE_URL . 'rest/');
+define('JRS_RESTV2_URL', JRS_BASE_URL . 'rest_v2/');
 
 
-function jasperservet_sso_curl_set_opts($curl_opts) {
-
-}
-
-function jasperserver_sso_rest_post($service, $data, $japserRestUrl = JS_REST_URL , $headers=array()) {
+function jasperserver_sso_rest_post($service, $data, $japserRestUrl = JRS_REST_URL , $headers=array()) {
     
   $requestData = http_build_query($data);
   
@@ -30,7 +26,7 @@ function jasperserver_sso_rest_post($service, $data, $japserRestUrl = JS_REST_UR
   $curl_opts[CURLOPT_POSTFIELDS] = $requestData;
 
   return jasperserver_sso_rest_doRequest($japserRestUrl . $service, $curl_opts);
- }
+}
 
 function jasperserver_sso_rest_doRequest($url, $curl_opts) {
   $std_opts = array(
@@ -55,4 +51,4 @@ function jasperserver_sso_rest_doRequest($url, $curl_opts) {
   curl_close($curl);
   
   return $response;
- }
+}

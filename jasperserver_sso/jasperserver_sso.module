@@ -7,7 +7,9 @@
 
 // Load node.admin.inc from the node module.
 module_load_include('inc', 'jasperserver_sso', 'jasper.rest');
-  
+
+define('JRS_SESSION_TIMEOUT',  60 * 20); // 20 minutes
+
 /**
  * @defgroup jasperserver_sso Example: Trigger
  * @ingroup examples
@@ -151,21 +153,15 @@ function jasperserver_sso_triggersomething($options = array()) {
 /**
  * Implements hook_user_login().
  *
- * User first login trigger: Run actions on user first login.
+ * User login trigger for SSO with JasperReports Server
  *
- * The event "User first time login" does not exist, we should create it before
- * it can be used. We use hook_user_login to be informed when a user logs in and
- * try to find if the user has previously logged in before. If the user has not
- * accessed previously, we make a call to our trigger function.
+ * This SSO method uses Jasper Server REST API and cookies for the SSO
+ * for this to work JRS and the Drupal have to run in the same domain.
+ * 
  */
 function jasperserver_sso_user_login(&$edit, $account, $category = NULL) {
-  // Verify user has never accessed the site: last access was creation date.
-  /*
-   * $account is a Drupal user Object http://api.drupal.org/api/drupal/developer%21globals.php/global/user/7
-   * name - User name
-     pass - Encrypted password 
-   */
 
+  // Get the username and password to pass to the JRS REST Call
   $jasperOrg = "organization_1";
   $japserUser  = $edit['values']['name']  . '|' . $jasperOrg;
   $jasperPassword = $edit['values']['pass'];
@@ -174,72 +170,72 @@ function jasperserver_sso_user_login(&$edit, $account, $category = NULL) {
       'j_username' => $japserUser,
       'j_password' => $jasperPassword
   );
-    
-  dd($japserUser, $label = 'JRS User');
-  dd($jasperPassword, $label = 'JRS Pass');
   
   $response = jasperserver_sso_rest_post('login', $requestBody);
 
-  dd($response, $label = 'JapserResponse');
-  
+  switch ($response['metadata']['http_code']) {
+      case 200:
+          /*  All OK Japser login succeded
+           * Extract the Cookie and save the string in my session for further requests.
+           * Cookie format: JSESSIONID=<sessionID>; $Path=<pathToJRS>
+          */
+          preg_match('/^Set-Cookie: (.*?)$/sm', $response['body'], $cookie);
+          $_SESSION["JRS_Cookie"] = '$Version=0; ' . str_replace('Path', '$Path', $cookie[1]);
+          // Grab the JS Session ID and set the cookie in the right path so 
+          // when I present an iFrame I can use that session to be authenticated
+          // For this to work JS and the App have to run in the same domain 
+          
+          preg_match_all('/=(.*?);/' , $cookie[1], $cookievalue);
+          $JRSSessionID = $cookievalue[1][0];
+          $JRSPath = $cookievalue[1][1];
+          $_SESSION["JRS_SessionID"] = $JRSSessionID;
+          $_SESSION["JRS_Path"] = $JRSPath;
+          setcookie('JSESSIONID', $JRSSessionID , time() + JRS_SESSION_TIMEOUT, $JRSPath);
+          break;
+      case 401:
+          // 401 Unauthorized What should we do???
+          drupal_set_message(t('An error occurred: Jasper Server Login Failed for user: @user - Contact your administrator.', array('@user' => $japserUser)), 'warning');
+          break;
+      case 302:
+          // 302 – License expired or otherwise not valid.
+          drupal_set_message(t('An error occurred: Jasper Server License expired or otherwise not valid.'), 'error');
+          break;          
+      default:
+          // Unrecognized error, login should respond with 200, 302 or 401 only
+          drupal_set_message(t('An error occurred: Unrecognized error Jasper SSO Error.'), 'error');
+          break;
+  }
+
   if ($account->access == 0) {
-    // Call the aproppriate trigger function
+    // Frist time logging in
     _jasperserver_sso_first_time_login('user_first_time_login', $edit, $account, $category);
   }
 }
 
 /**
- * Trigger function for "User first time login"
+ * Implements hook_user_logout
  *
- * This trigger is a user-type triggers, so is grouped with other user-type
- * triggers. It needs to provide all the context that user-type triggers
- * provide.  For this example, we are going to copy the trigger.module
- * implementation for the 'User has logged in' event.
- *
- * This function will run all the actions assigned to the
- * 'user_first_time_login' trigger.
- *
- * For testing you can use an update query like this to reset a user to
- * "never logged in":
- * @code
- * update users set access=created where name='test1';
- * @endcode
- *
- * @param string $hook
- *   The trigger identification.
- * @param array  $edit
- *   Modifications for the account object (should be empty).
- * @param object $account
- *   User object that has logged in.
- * @param string $category
- *   Category of the profile.
+ * Expire the Japser Server SSO Cookie on user logout.
  */
-function _jasperserver_sso_first_time_login($hook, &$edit, $account, $category = NULL) {
-  // Keep objects for reuse so that changes actions make to objects can persist.
-  static $objects;
-  // Get all assigned actions for the 'user_first_time_login' trigger.
-  $aids = trigger_get_assigned_actions($hook);
-  $context = array(
-    'group' => 'user',
-    'hook' => $hook,
-    'form_values' => &$edit,
-  );
-  // Instead of making a call to actions_do for all triggers, doing this loop
-  // we provide the oportunity for actions to alter the account object, and
-  // the next action should have this altered account object as argument.
-  foreach ($aids as $aid => $info) {
-    $type = $info['type'];
-    if ($type != 'user') {
-      if (!isset($objects[$type])) {
-        $objects[$type] = _trigger_normalize_user_context($type, $account);
-      }
-      $context['user'] = $account;
-      actions_do($aid, $objects[$type], $context);
-    }
-    else {
-      actions_do($aid, $account, $context, $category);
-    }
-  }
+function jasperserver_sso_user_logout($account){
+  // Expire Jasper Session Cookie
+  setcookie('JSESSIONID', '' , time() - 3600, $_SESSION['JRS_Path']);
+  unset($GLOBALS[_SESSION]['JRS_SessionID']);
+  
+}
+
+/**
+ * Implementation of hook_init().
+ * 
+ * Keep the Jasper Server Session alive as long as the user is logged into Drupal
+ * 
+ */
+function jasperserver_sso_init() {
+    if(isset($_SESSION['JRS_SessionID'])) {
+        // do a bogus rest call and update the cookie
+        // GET /jasperserver-pro/rest/resources?limit=1
+        setcookie('JSESSIONID', $_SESSION['JRS_SessionID'] , time() + JRS_SESSION_TIMEOUT, $_SESSION['JRS_Path']);
+        }
 }
 
 /**
