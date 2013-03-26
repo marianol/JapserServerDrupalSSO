@@ -13,6 +13,15 @@ define('JRS_BASE_URL', 'http://' . JRS_HOST . ':' . JRS_PORT . JRS_BASE . '/');
 define('JRS_REST_URL', JRS_BASE_URL . 'rest/');
 define('JRS_RESTV2_URL', JRS_BASE_URL . 'rest_v2/');
 
+function jasperserver_sso_rest_keepalive() {
+    // Bogus rest call to keep the JRS session alive
+    // GET /jasperserver-pro/rest/resources?limit=1
+    $curl_opts = array();
+    $curl_opts[CURLOPT_COOKIE] = $_SESSION['JRS_Cookie'];
+    $response = jasperserver_sso_rest_doRequest(JRS_REST_URL . 'resources?limit=1', $curl_opts);
+    dd($response['metadata']['http_code'], $label = 'JRS Keepalive');
+    return $response['metadata']['http_code'];
+}
 
 function jasperserver_sso_rest_post($service, $data, $japserRestUrl = JRS_REST_URL , $headers=array()) {
     

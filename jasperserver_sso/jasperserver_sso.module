@@ -180,7 +180,7 @@ function jasperserver_sso_user_login(&$edit, $account, $category = NULL) {
            * Cookie format: JSESSIONID=<sessionID>; $Path=<pathToJRS>
           */
           preg_match('/^Set-Cookie: (.*?)$/sm', $response['body'], $cookie);
-          $_SESSION["JRS_Cookie"] = '$Version=0; ' . str_replace('Path', '$Path', $cookie[1]);
+          $_SESSION['JRS_Cookie'] = '$Version=0; ' . str_replace('Path', '$Path', $cookie[1]);
           // Grab the JS Session ID and set the cookie in the right path so 
           // when I present an iFrame I can use that session to be authenticated
           // For this to work JS and the App have to run in the same domain 
@@ -188,8 +188,8 @@ function jasperserver_sso_user_login(&$edit, $account, $category = NULL) {
           preg_match_all('/=(.*?);/' , $cookie[1], $cookievalue);
           $JRSSessionID = $cookievalue[1][0];
           $JRSPath = $cookievalue[1][1];
-          $_SESSION["JRS_SessionID"] = $JRSSessionID;
-          $_SESSION["JRS_Path"] = $JRSPath;
+          $_SESSION['JRS_SessionID'] = $JRSSessionID;
+          $_SESSION['JRS_Path'] = $JRSPath;
           setcookie('JSESSIONID', $JRSSessionID , time() + JRS_SESSION_TIMEOUT, $JRSPath);
           break;
       case 401:
@@ -232,8 +232,8 @@ function jasperserver_sso_user_logout($account){
  */
 function jasperserver_sso_init() {
     if(isset($_SESSION['JRS_SessionID'])) {
-        // do a bogus rest call and update the cookie
-        // GET /jasperserver-pro/rest/resources?limit=1
+        // do a bogus rest call and update the cookie to keep the JRS session alive
+        $result = jasperserver_sso_rest_keepalive();
         setcookie('JSESSIONID', $_SESSION['JRS_SessionID'] , time() + JRS_SESSION_TIMEOUT, $_SESSION['JRS_Path']);
         }
 }
