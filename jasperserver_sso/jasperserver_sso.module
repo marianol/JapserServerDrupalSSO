@@ -2,82 +2,36 @@
 
 /**
  * @file
- * Jasper Report Server simple API SSO for Drupal
+ * Jasper Report Server simple REST API based SSO for Drupal
  */
 
-// Load node.admin.inc from the node module.
 module_load_include('inc', 'jasperserver_sso', 'jasper.rest');
 
 define('JRS_SESSION_TIMEOUT',  60 * 20); // 20 minutes
 
 /**
  * @defgroup jasperserver_sso Example: Trigger
- * @ingroup examples
+ * @ingroup jasperserver
  * @{
  *
- * Trigger definition example module.
+ * Jasper Report Server simple REST API based SSO for Drupal
  *
- * Triggers and actions are a pair of special-purpose functions allowing some
- * Drupal programming without using PHP. Using the
- * appropriate action in a specific event, a site administrator can
- * add new functionality. Examples are:
- *  - Send an email after a node is published or edited.
- *  - Display a message after a user has logged in.
- *  - Display a message and send an email after a node has been deleted.
+ * This module uses the Jasper Report Server REST API to integrate Drupal with
+ * Jasper reports Server.
  *
- * A Trigger is a special function able to enqueue actions. The trigger module
- * provides the interface allowing us to associate certain actions with certain
- * triggers.
+ * - The SSO method uses Jasper Server REST API and cookies for the allowing
+ * the user to login (initiate a session) in Jasper when he logs into Drupal
+ * for this to work JRS and the Drupal have to run in the same domain.
  *
- * Actions are functions intended to be run by triggers.
- *
- * A trigger should build the appropriate context for the action to be fired.
- * Actions are very often
- * grouped by functionality: examples are 'user', 'node', 'taxonomy'. When some
- * actions are grouped it is because they expect the same arguments. This way,
- * you can enqueue as many actions understanding the 'user' object as you want.
- *
- * Not all actions can be used in all triggers because they require different
- * contexts. But some actions
- * are generic enough to not require special objects in their
- * contexts, and so can be used on every available trigger. This 'group' type
- * is used by actions to be available for this trigger.
- *
- * What are good candidates to be triggers? Any function can be a trigger, as
- * long as it has the code to call the enqueued actions, but to make Drupal
- * more extensible, you will find hooks (from Drupal and contributed modules)
- * very good candidates. A trigger should build the arguments, ask for enqueued
- * actions and run them. You may define a function being a trigger, and run it
- * through a button in the front page, or you may prepare a trigger for a hook,
- * and everytime that hook is fired, your trigger will be.
- *
- * What are good candidates to be actions? any function is a possible action,
- * the only problem is finding a trigger able to run it.
- *
- * This module describes how to create triggers and actions for Drupal. In this
- * example we are providing two triggers:
- *
- * - A custom trigger, in its simplest form. We provide a page with a button.
- *   This button does nothing at all, but when you click (and submit the empty
- *   form), any actions you have configured will be executed.
- *
- * - A trigger which extends the capabilities of User triggers.
- *   This creates a new event which fires the first time a user ever logs in.
- *   In the module we will create it, and then provide a trigger for
- *   the administrator to be able to enqueue actions. They will be executed
- *   only the first time the user logs in the system.
+ * - The Jasper Server Session is kept alive on each page refresh and then is
+ * destryed when the user log out of Drupal 
  *
  * See:
  *
- * @link http://drupal.org/node/375833 Creating Triggers @endlink
+ * @link http://community.jaspersoft.com/documentation/ Jasper Reports Server Documentation @endlink
  *
- * @link http://drupal.org/node/172152 Writing Actions @endlink
+ * @link http://www.jaspersoft.com/ Japspersoft Main Site @endlink
  *
- * @link http://drupal.org/node/199254 Triggers and Actions in Drupal 6 @endlink
- *
- * @see hook_trigger_info()
- * @see hook_trigger_info_alter()
- * Also see the @link action_example.module Action Example @endlink.
  */
 
 /**
@@ -94,11 +48,6 @@ define('JRS_SESSION_TIMEOUT',  60 * 20); // 20 minutes
  */
 function jasperserver_sso_trigger_info() {
   return array(
-    'user' => array(
-      'user_first_time_login' => array(
-        'label' => t('After a user has logged in for the first time'),
-      ),
-    ),
     'jasperserver_sso' => array(
       'triggersomething' => array(
         'label' => t('After the triggersomething button is clicked'),
@@ -107,12 +56,6 @@ function jasperserver_sso_trigger_info() {
   );
 }
 
-/**
- * Triggers are used most of the time to do something when an event happens.
- * The most common type of event is a hook invocation,
- * but that is not the only possibility.
- *
- */
 
 /**
  * triggersomething trigger: Run actions associated with an arbitrary event.
@@ -143,12 +86,6 @@ function jasperserver_sso_triggersomething($options = array()) {
   actions_do(array_keys($aids), (object) $options, $context);
 }
 
-
-/**
- * The next trigger is more complex, we are providing a trigger for a
- * new event: "user first time login". We need to create this event
- * first.
- */
 
 /**
  * Implements hook_user_login().
@@ -255,9 +192,7 @@ function jasperserver_sso_help($path, $arg) {
         or nothing will happen.  Use the <a href="@actions-url">Actions settings page</a>
         and assign these actions to the triggersomething event on the
         <a href="@triggers-url">Triggers settings page</a>. <br/><br/>
-        The other example is the "user never logged in before" example. For that one,
-        assign an action to the "After a user has logged in for the first time" trigger
-        and then log a user in.', array('@actions-url' => url('admin/config/system/actions'), '@triggers-url' => url('admin/structure/trigger/jasperserver_sso')));
+        ', array('@actions-url' => url('admin/config/system/actions'), '@triggers-url' => url('admin/structure/trigger/jasperserver_sso')));
       return "<p>$explanation</p>";
     case 'admin/structure/trigger/system':
       return t('you can assign actions to run everytime an email is sent by Drupal');
