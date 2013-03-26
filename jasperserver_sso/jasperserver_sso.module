@@ -165,16 +165,7 @@ function jasperserver_sso_user_login(&$edit, $account, $category = NULL) {
    * name - User name
      pass - Encrypted password 
    */
-  $curl_opts = array(
-    CURLOPT_RETURNTRANSFER => true,  // return result instead of echoing
-    CURLOPT_SSL_VERIFYPEER => false, // stop cURL from verifying the peer's certificate
-    CURLOPT_FOLLOWLOCATION => true,  // follow redirects, Location: headers
-    CURLOPT_MAXREDIRS      => 10,    // but dont redirect more than 10 times
-    //CURLOPT_FILE         => '/dev/null', // saving cookies
-    CURLOPT_HEADER         => true   // Get headers
-  );
-  
-  $japserRestUrl = 'http://localhost:8080/jasperserver-pro/rest/';
+
   $jasperOrg = "organization_1";
   $japserUser  = $edit['values']['name']  . '|' . $jasperOrg;
   $jasperPassword = $edit['values']['pass'];
@@ -187,24 +178,9 @@ function jasperserver_sso_user_login(&$edit, $account, $category = NULL) {
   dd($japserUser, $label = 'JRS User');
   dd($jasperPassword, $label = 'JRS Pass');
   
-  $requestData = http_build_query($requestBody);
+  $response = jasperserver_sso_rest_post('login', $requestBody);
 
-  $curl_opts[CURLOPT_CUSTOMREQUEST] = 'POST';
-  $headers[] = 'Content-Length: '.strlen($requestData);
-  $curl_opts[CURLOPT_HTTPHEADER] = $headers;
-  $curl_opts[CURLOPT_POSTFIELDS] = $requestData;
-  
-  $service = 'login';
-  $curl = curl_init($japserRestUrl . $service);
-    
-  foreach ($curl_opts as $opt => $val)
-      curl_setopt($curl, $opt, $val);
-  
-  $body = curl_exec($curl);
-  $meta = curl_getinfo($curl);
-  curl_close($curl);
-  dd($body, $label = 'JapserResponse');
-  dd($meta, $label = 'JapserMeta');
+  dd($response, $label = 'JapserResponse');
   
   if ($account->access == 0) {
     // Call the aproppriate trigger function
