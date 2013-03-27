@@ -211,12 +211,13 @@ function jasperserver_sso_help($path, $arg) {
  * Provides a form that can be used to fire the module's triggers.
  */
 function jasperserver_sso_menu() {
-  $items['examples/jasperserver_sso'] = array(
-    'title'           => 'Trigger Example',
-    'description'     => 'Provides a form to demonstrate the trigger example.',
+  $items['admin/settings/jasperserver_sso-config'] = array(
+    'title'           => 'Jasper Report Server SSO',
+    'description'     => 'Jasper Report Server SSO settings page.',
     'page callback'   => 'drupal_get_form',
-    'page arguments'  => array('jasperserver_sso_form'),
-    'access callback' => TRUE,
+    'page arguments' => array('jasperserver_sso_admin'),
+    'access arguments' => array('administer jasperserver_sso settings'),
+    'type' => MENU_NORMAL_ITEM,
   );
   return $items;
 }
@@ -244,6 +245,52 @@ function jasperserver_sso_form_submit($form, $form_state) {
   }
 }
 
+
+/**
+ * Module Stettings Form for the jasperserver_sso
+ */
+function jasperserver_sso_admin() {
+  $form = array();
+
+  $form['jasperserver_sso_port'] = array(
+    '#type' => 'textfield',
+    '#title' => t('Jasper Report Server Port'),
+    '#default_value' => variable_get('jasperserver_sso_port', 8080),
+    '#size' => 2,
+    '#maxlength' => 2,
+    '#description' => t("The port on which Jasper Report Server is installed (tomcat default 8080 using mod_jk 80)."),
+    '#required' => TRUE,
+  );
+  $form['jasperserver_sso_sessiontimeout'] = array(
+    '#type' => 'textfield',
+    '#title' => t('Jasper Report Server Session Time out'),
+    '#default_value' => variable_get('jasperserver_sso_sessiontimeout', 20),
+    '#size' => 2,
+    '#maxlength' => 2,
+    '#description' => t("The Jasper Report Server session length (in minutes) as defined in your application server container."),
+    '#required' => TRUE,
+  );
+  return system_settings_form($form);
+}
+
+/**
+ * Settingd Form Validation handler for jasperserver_sso_admin() 
+ */
+function jasperserver_sso_admin_validate($form, &$form_state) {
+
+  if (!is_numeric($form_state['values']['jasperserver_sso_port'])) {
+    form_set_error('jasperserver_sso_port', t('You must enter an integer for Jasper Server port number.'));
+  }
+  elseif ($form_state['values']['jasperserver_sso_port'] <= 0) {
+    form_set_error('jasperserver_sso_port', t('Jasper Server port number must be positive.'));
+  }
+  if (!is_numeric($form_state['values']['jasperserver_sso_sessiontimeout'])) {
+    form_set_error('jasperserver_sso_port', t('You must enter an integer number of minutes for Jasper Server session length.'));
+  }
+  elseif ($form_state['values']['jasperserver_sso_sessiontimeout'] <= 0) {
+    form_set_error('jasperserver_sso_port', t('Jasper Server session length must be positive.'));
+  }
+}
 
 /**
  * Optional usage of hook_trigger_info_alter().
