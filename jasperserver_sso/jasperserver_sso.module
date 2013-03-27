@@ -7,7 +7,7 @@
 
 module_load_include('inc', 'jasperserver_sso', 'jasper.rest');
 
-define('JRS_SESSION_TIMEOUT',  60 * 20); // 20 minutes
+define('JRS_SESSION_TIMEOUT',  60 ); // 1 minute
 
 /**
  * @defgroup jasperserver_sso Example: Trigger
@@ -127,7 +127,7 @@ function jasperserver_sso_user_login(&$edit, $account, $category = NULL) {
           $JRSPath = $cookievalue[1][1];
           $_SESSION['JRS_SessionID'] = $JRSSessionID;
           $_SESSION['JRS_Path'] = $JRSPath;
-          setcookie('JSESSIONID', $JRSSessionID , time() + JRS_SESSION_TIMEOUT, $JRSPath);
+          setcookie('JSESSIONID', $JRSSessionID , time() + JRS_SESSION_TIMEOUT * variable_get('jasperserver_sso_sessiontimeout', 20), $JRSPath);
           break;
       case 401:
           // 401 Unauthorized What should we do???
@@ -142,10 +142,10 @@ function jasperserver_sso_user_login(&$edit, $account, $category = NULL) {
           drupal_set_message(t('An error occurred: Unrecognized error Jasper SSO Error.'), 'error');
           break;
   }
-
+  // dd($response['metadata'] , 'login');
+  
   if ($account->access == 0) {
     // Frist time logging in
-    _jasperserver_sso_first_time_login('user_first_time_login', $edit, $account, $category);
   }
 }
 
@@ -171,8 +171,10 @@ function jasperserver_sso_init() {
     if(isset($_SESSION['JRS_SessionID'])) {
         // do a bogus rest call and update the cookie to keep the JRS session alive
         $result = jasperserver_sso_rest_keepalive();
-        setcookie('JSESSIONID', $_SESSION['JRS_SessionID'] , time() + JRS_SESSION_TIMEOUT, $_SESSION['JRS_Path']);
-        }
+        setcookie('JSESSIONID', $_SESSION['JRS_SessionID'] , time() + JRS_SESSION_TIMEOUT * variable_get('jasperserver_sso_sessiontimeout', 20), $_SESSION['JRS_Path']);
+        // dd($result , 'watchdog');
+    }
+    
 }
 
 /**
@@ -225,28 +227,129 @@ function jasperserver_sso_menu() {
 }
 
 /**
- * Trigger example test form.
+ * Implements hook_block_info().
  *
- * Provides a button to run the triggersomething event.
+ * This hook declares what blocks are provided by the module.
  */
-function jasperserver_sso_form($form_state) {
-  $form['triggersomething'] = array(
-    '#type'  => 'submit',
-    '#value' => t('Run triggersomething event'),
+function jasperserver_sso_block_info() {
+  // This hook returns an array, each component of which is an array of block
+  // information. The array keys are the 'delta' values used in other block
+  // hooks.
+
+  // The required block information is a block description, which is shown
+  // to the site administrator in the list of possible blocks. You can also
+  // provide initial settings for block weight, status, etc.
+
+  // Many options are defined in hook_block_info():
+  $blocks['jasperserver_library'] = array(
+    // info: The name of the block.
+    'info' => t('Jasper Server Library View'),
+    // Block caching options (per role, per user, etc.)
+    'cache' => DRUPAL_CACHE_PER_USER, 
   );
+
+  // This sample shows how to provide default settings. In this case we'll
+  // enable the block in the first sidebar and make it visible only on
+  // 'node/*' pages. See the hook_block_info() documentation for these.
+  $blocks['jasperserver_repository'] = array(
+    'info' => t('Jasper Server Repository View'),
+    'cache' => DRUPAL_CACHE_PER_USER, 
+  );
+
+  return $blocks;
+}
+
+/**
+ * Implements hook_block_configure().
+ *
+ * This hook declares configuration options for blocks provided by this module.
+ */
+function jasperserver_sso_block_configure($delta = '') {
+  // The $delta parameter tells us which block is being configured.
+  // In this example, we'll allow the administrator to customize
+  // the text of the 'configurable text string' block defined in this module.
+
+  $form = array();
+  if ($delta == 'jasperserver_library') {
+    // All we need to provide is the specific configuration options for our
+    // block. Drupal will take care of the standard block configuration options
+    // (block title, page visibility, etc.) and the save button.
+    $form['jasperserver_library_theme'] = array(
+      '#type' => 'textfield',
+      '#title' => t('Jasperserver Theme Name'),
+      '#size' => 20,
+      '#description' => t('The JasperReport Server theme to be used in this block.'),
+      '#default_value' => variable_get('jasperserver_library_theme',  'embed'),
+    );
+  }
   return $form;
 }
 
 /**
- * Submit handler for the jasperserver_sso_form().
+ * Implements hook_block_save().
+ *
+ * This hook declares how the configured options for a block
+ * provided by this module are saved.
  */
-function jasperserver_sso_form_submit($form, $form_state) {
-  // If the user clicked the button, then run the triggersomething trigger.
-  if ($form_state['values']['op'] == t('Run triggersomething event')) {
-    jasperserver_sso_triggersomething();
+function jasperserver_sso_block_save($delta = '', $edit = array()) {
+  // We need to save settings from the configuration form.
+  // We need to check $delta to make sure we are saving the right block.
+  if ($delta == 'jasperserver_library') {
+    // Have Drupal save the config to the database.
+    variable_set('jasperserver_library_theme', $edit['jasperserver_library_theme']);
   }
+  return;
 }
 
+/**
+ * Implements hook_block_view().
+ *
+ * This hook generates the contents of the blocks themselves.
+ */
+function jasperserver_sso_block_view($delta = '') {
+  //The $delta parameter tells us which block is being requested.
+  $block = array();
+  switch ($delta) {
+    case 'jasperserver_library':
+      // The subject is displayed at the top of the block. Note that it
+      // should be passed through t() for translation. The title configured
+      // for the block using Drupal UI supercedes this one.
+      $block['subject'] = t('BI Library');
+      $block['content'] = jasperserver_sso_blocks_content($delta);
+      break;
+    case 'jasperserver_repository':
+      $block['subject'] = t('Reports Repository');
+      $block['content'] = jasperserver_sso_blocks_content($delta);
+      break;
+  }
+  return $block;
+}
+
+/**
+ * A module-defined block content function.
+ */
+function jasperserver_sso_blocks_content($which_block) {
+  $JRS_URL = $GLOBALS['base_root'] . ':' .  variable_get('jasperserver_sso_port', 8080) 
+        . '/' . variable_get('jasperserver_sso_context', 'jasperserver-pro') . '/flow.html?' ;
+  $JRS_Parameters = array();
+  
+  $JRS_Parameters['theme'] = variable_get('jasperserver_library_theme',  'embed');
+  
+  switch ($which_block) {
+    case 'jasperserver_library':
+      // Generate the iFrame code required
+      // array('#markup' => variable_get('block_example_string',  t('A default value. This block was created at %time', array('%time' => date('c')))));
+      $JRS_Parameters['_flowId'] = 'searchFlow';
+      $JRS_Parameters['mode'] = 'library';
+      break;
+      
+  }
+  foreach ($JRS_Parameters as $key => $value) {
+      $JRS_URL .= $key . '=' . urldecode($value) . '&';
+  }
+  $output = '<iframe src="' . $JRS_URL . '" width="100%" height="100%" frameborder="0"></iframe>';
+  return $output;
+}
 
 /**
  * Module Stettings Form for the jasperserver_sso
@@ -270,7 +373,7 @@ function jasperserver_sso_admin() {
     '#title' => t('Jasper Report Server Port'),
     '#default_value' => variable_get('jasperserver_sso_port', 8080),
     '#size' => 2,
-    '#maxlength' => 2,
+    '#maxlength' => 5,
     '#description' => t("The port on which Jasper Report Server is installed (tomcat default 8080 using mod_jk 80)."),
     '#required' => TRUE,
   );
