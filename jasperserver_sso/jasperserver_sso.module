@@ -194,8 +194,10 @@ function jasperserver_sso_help($path, $arg) {
         <a href="@triggers-url">Triggers settings page</a>. <br/><br/>
         ', array('@actions-url' => url('admin/config/system/actions'), '@triggers-url' => url('admin/structure/trigger/jasperserver_sso')));
       return "<p>$explanation</p>";
-    case 'admin/structure/trigger/system':
-      return t('you can assign actions to run everytime an email is sent by Drupal');
+    case 'admin/settings/jasperserver_sso-config':
+      return t('The JasperReports Server SSO module allows you to integrate JRS with Drupal.<br/>
+      JapserReports Server and Drupal must be running in the same domain for this module to work.<br/><br/>
+      Use the form below to configure the settings of your JasperServer instance. ');
     case 'admin/structure/trigger/jasperserver_sso':
       $explanation = t(
       "A trigger is a system event. For the trigger example, it's just a button-press.
@@ -252,6 +254,17 @@ function jasperserver_sso_form_submit($form, $form_state) {
 function jasperserver_sso_admin() {
   $form = array();
 
+  $form['jasperserver_sso_context'] = array(
+    '#type' => 'textfield',
+    '#title' => t('Jasper Report Server Context'),
+    '#default_value' => variable_get('jasperserver_sso_context', 'jasperserver-pro'),
+    '#size' => 30,
+    '#maxlength' => 150,
+    '#description' => t("The context (URL path) on which Jasper Report Server is installed without the host name.<br> 
+    Since the host has to be the same as the drupal host for this module to work. <br> i.e.: If JRS is installed 
+    in http://www.mydrupal.com:8080/jasperserver your context is 'jasperserver' and your port 8080."),
+    '#required' => TRUE,
+  );
   $form['jasperserver_sso_port'] = array(
     '#type' => 'textfield',
     '#title' => t('Jasper Report Server Port'),
